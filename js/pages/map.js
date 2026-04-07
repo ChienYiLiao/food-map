@@ -57,8 +57,7 @@ const MapPage = (() => {
       _currentCenter = center;
 
       const mapId = localStorage.getItem('GOOGLE_MAP_ID') || '';
-      _useAdvancedMarker = !!mapId;
-      const { Map } = await google.maps.importLibrary('maps');
+      _useAdvancedMarker = false; // 傳統 Marker，不需要 Map ID
       const mapOptions = {
         center: { lat: center.lat, lng: center.lng },
         zoom: 16,
@@ -70,8 +69,7 @@ const MapPage = (() => {
         fullscreenControl: false,
         zoomControl: false
       };
-      if (mapId) mapOptions.mapId = mapId;
-      _map = new Map(document.getElementById('map-container'), mapOptions);
+      _map = new google.maps.Map(document.getElementById('map-container'), mapOptions);
 
       // 地圖拖曳結束後更新中心點並刷新
       _map.addListener('dragend', () => {
@@ -93,24 +91,25 @@ const MapPage = (() => {
     }
   }
 
-  // 載入 Google Maps Script（動態注入）
+  // 載入 Google Maps Script（傳統同步回呼方式，最相容）
   function _loadGoogleMapsScript(apiKey) {
     return new Promise((resolve, reject) => {
-      if (window._googleMapsReady) { resolve(); return; }
+      if (window.google && window.google.maps) { resolve(); return; }
       if (document.getElementById('gmaps-script')) {
-        // 已在載入中，等待
         const check = setInterval(() => {
-          if (window._googleMapsReady) { clearInterval(check); resolve(); }
+          if (window.google && window.google.maps) { clearInterval(check); resolve(); }
         }, 100);
+        setTimeout(() => { clearInterval(check); reject(new Error('Google Maps 載入逾時')); }, 15000);
         return;
       }
-      window.initGoogleMaps = () => {
-        window._googleMapsReady = true;
-        resolve();
-      };
+      window._gmapsResolve = resolve;
+      window._gmapsReject  = reject;
+      window.initGoogleMaps = () => { window._gmapsResolve && window._gmapsResolve(); };
       const script = document.createElement('script');
-      script.id  = 'gmaps-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=maps,marker&v=weekly&loading=async&callback=initGoogleMaps`;
+      script.id    = 'gmaps-script';
+      script.async = true;
+      script.defer = true;
+      script.src   = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initGoogleMaps`;
       script.onerror = () => reject(new Error('Google Maps 腳本載入失敗，請確認 API Key 是否正確'));
       document.head.appendChild(script);
     });
@@ -243,7 +242,7 @@ const MapPage = (() => {
     Object.keys(_markers).forEach(pid => {
       if (!newPlaceIds.has(pid)) {
         const m = _markers[pid];
-        if (m.map !== undefined) m.map = null; else m.setMap(null);
+        m.setMap(null);
         delete _markers[pid];
       }
     });
@@ -261,38 +260,23 @@ const MapPage = (() => {
   }
 
   async function _createMarker(restaurant) {
-    if (_useAdvancedMarker) {
-      const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
-      const content = _buildMarkerContent(restaurant);
-      const marker = new AdvancedMarkerElement({
-        map: _map,
-        position: { lat: restaurant.lat, lng: restaurant.lng },
-        content: content,
-        title: restaurant.name
-      });
-      marker.addEventListener('click', () => _onMarkerClick(restaurant));
-      return marker;
-    } else {
-      // 傳統 Marker（不需要 Map ID）
-      const isVisited = restaurant.visit_count > 0;
-      const marker = new google.maps.Marker({
-        map: _map,
-        position: { lat: restaurant.lat, lng: restaurant.lng },
-        title: restaurant.name,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: isVisited ? 10 : 7,
-          fillColor: isVisited ? '#9b8fb0' : '#7a9ab5',
-          fillOpacity: isVisited ? 0.9 : 0.7,
-          strokeColor: '#ffffff',
-          strokeWeight: 2
-        }
-      });
-      marker.addListener('click', () => _onMarkerClick(restaurant));
-      // 模擬 AdvancedMarker 的 map 屬性介面
-      marker._isClassicMarker = true;
-      return marker;
-    }
+    const isVisited = restaurant.visit_count > 0;
+    const marker = new google.maps.Marker({
+      map: _map,
+      position: { lat: restaurant.lat, lng: restaurant.lng },
+      title: restaurant.name,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: isVisited ? 10 : 7,
+        fillColor: isVisited ? '#9b8fb0' : '#7a9ab5',
+        fillOpacity: isVisited ? 0.9 : 0.7,
+        strokeColor: '#ffffff',
+        strokeWeight: 2
+      }
+    });
+    marker.addListener('click', () => _onMarkerClick(restaurant));
+    marker._isClassicMarker = true;
+    return marker;
   }
 
   function _buildMarkerContent(restaurant) {
