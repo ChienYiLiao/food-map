@@ -74,8 +74,11 @@
 /* ── 地圖容器（全畫面背景） ────────────────────────────────────────────────── */
 #map-container {
   position: fixed;
-  inset: 0;
-  z-index: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 5;  /* 高於 #app (auto≈0) 但低於 #main-content (10) */
   background: var(--color-bg);
 }
 

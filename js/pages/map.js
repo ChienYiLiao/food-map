@@ -58,14 +58,12 @@ const MapPage = (() => {
 
       _useAdvancedMarker = false;
 
-      // 確保容器有明確尺寸（Google Maps 初始化時需要）
       const container = document.getElementById('map-container');
-      container.style.position = 'fixed';
-      container.style.top = '0';
-      container.style.left = '0';
+      // 確保容器有明確尺寸
       container.style.width = window.innerWidth + 'px';
       container.style.height = window.innerHeight + 'px';
-      container.style.zIndex = '0';
+      // 診斷用（確認尺寸正確）
+      Toast.show(`容器: ${container.offsetWidth}×${container.offsetHeight}`, 'info');
 
       const mapOptions = {
         center: { lat: center.lat, lng: center.lng },
