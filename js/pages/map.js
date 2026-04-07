@@ -13,9 +13,10 @@ const MapPage = (() => {
   let _selectedPlaceId = null;
   let _gasRestaurants = [];
   let _useAdvancedMarker = false;
-  let _locationMarker = null;   // 藍色「我的位置」標記
+  let _locationMarker = null;   // 「我的位置」標記（頭像）
   let _rangeCircle = null;      // 搜尋範圍圓圈
   let _allRestaurants = [];     // 當前顯示的所有餐廳（供統計條點擊用）
+  const _markerIconCache = {};  // emoji marker icon 快取
 
   // ── 頁面進入 ──────────────────────────────────────────────────────────────
   async function show() {
@@ -98,8 +99,8 @@ const MapPage = (() => {
       google.maps.event.trigger(_map, 'resize');
       _map.setCenter({ lat: center.lat, lng: center.lng });
 
-      // 建立「我的位置」藍點 & 搜尋範圍圓圈
-      _createLocationMarker();
+      // 建立「我的位置」頭像標記 & 搜尋範圍圓圈
+      await _createLocationMarker();
       _updateRangeCircle();
 
       // 初次載入附近餐廳
@@ -160,7 +161,7 @@ const MapPage = (() => {
       _currentCenter = center;
       if (_map) _map.panTo({ lat: center.lat, lng: center.lng });
       State.setState({ mapCenter: center });
-      _createLocationMarker();
+      await _createLocationMarker();
       _updateRangeCircle();
       await refreshNearby(true);
     } finally {
@@ -168,24 +169,142 @@ const MapPage = (() => {
     }
   }
 
-  // ── 我的位置標記（藍點） ──────────────────────────────────────────────────────
-  function _createLocationMarker() {
+  // ── 我的位置標記（使用者頭像） ───────────────────────────────────────────────
+  async function _createLocationMarker() {
     if (!_map || !_userLocation) return;
     if (_locationMarker) _locationMarker.setMap(null);
-    _locationMarker = new google.maps.Marker({
-      map: _map,
-      position: { lat: _userLocation.lat, lng: _userLocation.lng },
-      title: '我的位置',
-      zIndex: 999,
-      icon: {
+
+    const user = State.getState().currentUser;
+    const avatarSrc = user?.avatarUrl || user?.defaultAvatar || null;
+    let icon = null;
+
+    if (avatarSrc) {
+      try {
+        const circularUrl = await _makeCircularAvatar(avatarSrc, 44);
+        if (circularUrl) {
+          icon = {
+            url: circularUrl,
+            scaledSize: new google.maps.Size(48, 48),
+            anchor: new google.maps.Point(24, 24)
+          };
+        }
+      } catch (e) { /* fallback */ }
+    }
+
+    if (!icon) {
+      icon = {
         path: google.maps.SymbolPath.CIRCLE,
         scale: 10,
         fillColor: '#4A90D9',
         fillOpacity: 1,
         strokeColor: '#ffffff',
         strokeWeight: 3
-      }
+      };
+    }
+
+    _locationMarker = new google.maps.Marker({
+      map: _map,
+      position: { lat: _userLocation.lat, lng: _userLocation.lng },
+      title: '我的位置',
+      zIndex: 999,
+      icon
     });
+  }
+
+  // 將頭像圖片繪製成帶白色圓框的圓形 data URL
+  function _makeCircularAvatar(src, size) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const total = size + 6;
+          const canvas = document.createElement('canvas');
+          canvas.width = total;
+          canvas.height = total;
+          const ctx = canvas.getContext('2d');
+          const cx = total / 2;
+          const r = size / 2;
+          // 白色外框
+          ctx.beginPath();
+          ctx.arc(cx, cx, r + 3, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          // 藍色邊框
+          ctx.beginPath();
+          ctx.arc(cx, cx, r + 2, 0, Math.PI * 2);
+          ctx.fillStyle = '#4A90D9';
+          ctx.fill();
+          // 圓形裁切後貼圖
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cx, r, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(img, 3, 3, size, size);
+          ctx.restore();
+          resolve(canvas.toDataURL());
+        } catch (e) { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      // 確保是絕對路徑
+      img.src = new URL(src, location.href).href;
+    });
+  }
+
+  // 將 emoji 繪製成圓形 marker icon 的 data URL（有快取）
+  function _emojiMarkerUrl(emoji, isVisited) {
+    const key = `${emoji}_${isVisited ? 1 : 0}`;
+    if (_markerIconCache[key]) return _markerIconCache[key];
+
+    const size = 40;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const cx = size / 2;
+
+    // 背景圓
+    ctx.beginPath();
+    ctx.arc(cx, cx, cx - 1, 0, Math.PI * 2);
+    ctx.fillStyle = isVisited ? '#9b8fb0' : '#7a9ab5';
+    ctx.fill();
+
+    // 白色邊框
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // emoji 文字
+    ctx.font = '20px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, cx, cx + 1);
+
+    const url = canvas.toDataURL();
+    _markerIconCache[key] = url;
+    return url;
+  }
+
+  // 根據餐廳資料取得顯示 emoji
+  function _getRestaurantEmoji(restaurant) {
+    if (restaurant.category) {
+      return CONFIG.getCategoryEmoji(restaurant.category);
+    }
+    // 從 google types 猜測
+    const types = restaurant.google_types || [];
+    if (types.some(t => t.includes('cafe') || t.includes('coffee'))) return '☕';
+    if (types.some(t => t.includes('bakery'))) return '🥐';
+    if (types.some(t => t.includes('bar'))) return '🍺';
+    if (types.some(t => t.includes('japanese'))) return '🍱';
+    if (types.some(t => t.includes('korean'))) return '🌶️';
+    if (types.some(t => t.includes('chinese'))) return '🥢';
+    if (types.some(t => t.includes('ramen'))) return '🍜';
+    if (types.some(t => t.includes('sushi'))) return '🍣';
+    if (types.some(t => t.includes('pizza'))) return '🍕';
+    if (types.some(t => t.includes('hamburger') || t.includes('fast_food'))) return '🍔';
+    if (types.some(t => t.includes('dessert') || t.includes('ice_cream'))) return '🧁';
+    if (types.some(t => t.includes('breakfast') || t.includes('brunch'))) return '🍳';
+    return '🍽️';
   }
 
   // ── 搜尋範圍圓圈 ─────────────────────────────────────────────────────────────
@@ -327,17 +446,16 @@ const MapPage = (() => {
 
   async function _createMarker(restaurant) {
     const isVisited = restaurant.visit_count > 0;
+    const emoji = _getRestaurantEmoji(restaurant);
+    const iconUrl = _emojiMarkerUrl(emoji, isVisited);
     const marker = new google.maps.Marker({
       map: _map,
       position: { lat: restaurant.lat, lng: restaurant.lng },
       title: restaurant.name,
       icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: isVisited ? 10 : 7,
-        fillColor: isVisited ? '#9b8fb0' : '#7a9ab5',
-        fillOpacity: isVisited ? 0.9 : 0.7,
-        strokeColor: '#ffffff',
-        strokeWeight: 2
+        url: iconUrl,
+        scaledSize: new google.maps.Size(isVisited ? 40 : 32, isVisited ? 40 : 32),
+        anchor: new google.maps.Point(isVisited ? 20 : 16, isVisited ? 20 : 16)
       }
     });
     marker.addListener('click', () => _onMarkerClick(restaurant));
@@ -368,13 +486,12 @@ const MapPage = (() => {
   function _updateMarkerContent(marker, restaurant) {
     if (marker._isClassicMarker) {
       const isVisited = restaurant.visit_count > 0;
+      const emoji = _getRestaurantEmoji(restaurant);
+      const iconUrl = _emojiMarkerUrl(emoji, isVisited);
       marker.setIcon({
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: isVisited ? 10 : 7,
-        fillColor: isVisited ? '#9b8fb0' : '#7a9ab5',
-        fillOpacity: isVisited ? 0.9 : 0.7,
-        strokeColor: '#ffffff',
-        strokeWeight: 2
+        url: iconUrl,
+        scaledSize: new google.maps.Size(isVisited ? 40 : 32, isVisited ? 40 : 32),
+        anchor: new google.maps.Point(isVisited ? 20 : 16, isVisited ? 20 : 16)
       });
     } else if (marker.content) {
       marker.content = _buildMarkerContent(restaurant);

@@ -25,6 +25,12 @@ const Router = (() => {
     }
   }
 
+  // 直接切換頁面，不依賴 hashchange 事件（iOS Safari standalone 相容）
+  function go(hash) {
+    window.history.pushState(null, '', '#' + hash);
+    _handleRouteChange();
+  }
+
   function _getHash() {
     return window.location.hash.replace('#', '') || 'map';
   }
@@ -90,5 +96,5 @@ const Router = (() => {
 
   function getCurrent() { return _current; }
 
-  return { register, navigate, init, getCurrent };
+  return { register, navigate, go, init, getCurrent };
 })();

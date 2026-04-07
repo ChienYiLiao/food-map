@@ -132,6 +132,10 @@
   padding: 4px 0;
   color: var(--color-text-muted);
   transition: color var(--transition-fast);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 .navbar-item.active { color: var(--color-primary-light); }
 .navbar-item svg { width: 22px; height: 22px; }
