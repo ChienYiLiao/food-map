@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1c1b24">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>美食地圖</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/map.css">
+  <!-- Cropper.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ── 地圖容器（全畫面背景） ──────────────────────────────────────────── -->
+  <div id="map-container"></div>
+
+  <!-- ── 頂部 TopBar ──────────────────────────────────────────────────────── -->
+  <header id="topbar">
+    <button class="topbar-btn" id="topbar-user-btn" title="切換用戶">
+      <img class="user-avatar sm" id="topbar-avatar" src="assets/default-avatars/pigpig.png" alt="">
+    </button>
+    <div class="topbar-title" id="topbar-title">美食地圖</div>
+    <div class="topbar-right" id="topbar-right">
+      <!-- 依頁面動態填入 -->
+    </div>
+  </header>
+
+  <!-- ── 主內容區 ──────────────────────────────────────────────────────────── -->
+  <main id="main-content">
+    <!-- 地圖頁（空，地圖在 #map-container） -->
+    <div id="page-map" class="page map-page"></div>
+
+    <!-- 用餐紀錄 -->
+    <div id="page-history" class="page"></div>
+
+    <!-- 隨機抽選 -->
+    <div id="page-random" class="page"></div>
+
+    <!-- 設定 -->
+    <div id="page-settings" class="page"></div>
+  </main>
+
+  <!-- ── 地圖頁面浮層 UI ────────────────────────────────────────────────── -->
+  <div id="map-overlay-ui" style="display:none;">
+    <!-- 半徑控制 -->
+    <div id="map-radius-card">
+      <span class="radius-label">📍 範圍</span>
+      <div class="radius-options" id="radius-options"></div>
+    </div>
+    <!-- 右下 FAB 組 -->
+    <div id="map-fab-group">
+      <button class="map-fab primary" id="fab-refresh" title="重新整理">🔄</button>
+      <button class="map-fab" id="fab-locate" title="回到我的位置">📌</button>
+    </div>
+    <!-- 底部統計條 -->
+    <div id="map-stats-bar">
+      <div class="map-stat-item">
+        <div class="map-stat-value" id="stat-visited">0</div>
+        <div class="map-stat-label">已吃過</div>
+      </div>
+      <div class="map-stat-divider"></div>
+      <div class="map-stat-item">
+        <div class="map-stat-value" id="stat-total">0</div>
+        <div class="map-stat-label">附近餐廳</div>
+      </div>
+      <div class="map-stat-divider"></div>
+      <div class="map-stat-item">
+        <div class="map-stat-value" id="stat-open">0</div>
+        <div class="map-stat-label">營業中</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 餐廳詳情 Bottom Sheet ──────────────────────────────────────────── -->
+  <div class="modal-overlay" id="restaurant-sheet-overlay">
+    <div class="modal-sheet" id="restaurant-sheet-content">
+      <!-- 由 restaurant-detail.js 動態填入 -->
+    </div>
+  </div>
+
+  <!-- ── 底部導覽列 ──────────────────────────────────────────────────────── -->
+  <nav id="navbar"></nav>
+
+  <!-- ── Loading & Toast ────────────────────────────────────────────────── -->
+  <div class="loader-overlay" id="loader-overlay">
+    <div class="loader-spinner"></div>
+    <div class="loader-text" id="loader-text">載入中...</div>
+  </div>
+  <div id="toast-container"></div>
+
+</div><!-- #app -->
+
+<!-- ── Scripts ──────────────────────────────────────────────────────────── -->
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/state.js"></script>
+<script src="js/api.js"></script>
+<script src="js/components/toast.js"></script>
+<script src="js/components/loader.js"></script>
+<script src="js/components/modal.js"></script>
+<script src="js/components/navbar.js"></script>
+<script src="js/components/avatar-cropper.js"></script>
+<script src="js/components/star-rating.js"></script>
+<script src="js/router.js"></script>
+<script src="js/pages/settings.js"></script>
+<script src="js/pages/history.js"></script>
+<script src="js/pages/random-pick.js"></script>
+<script src="js/pages/restaurant-detail.js"></script>
+<script src="js/pages/map.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+
+<script>
+  // ── App 初始化 ────────────────────────────────────────────────────────────
+  (async function initApp() {
+    // 1. 確認使用者已登入
+    const user = State.loadUser();
+    if (!user) {
+      window.location.href = 'index.html';
+      return;
+    }
+
+    // 2. 更新 Topbar 頭像
+    _updateTopbarUser(user);
+
+    // 3. 渲染導覽列
+    Navbar.render();
+
+    // 4. 登錄路由
+    Router.register('map',      { onEnter: () => MapPage.show(),      onLeave: () => MapPage.hide() });
+    Router.register('history',  { onEnter: () => HistoryPage.show(),  onLeave: () => HistoryPage.hide() });
+    Router.register('random',   { onEnter: () => RandomPickPage.show(), onLeave: () => RandomPickPage.hide() });
+    Router.register('settings', { onEnter: () => SettingsPage.show(), onLeave: () => SettingsPage.hide() });
+
+    // 5. 初始化路由
+    Router.init();
+
+    // 6. Topbar 用戶按鈕 → 切換用戶
+    document.getElementById('topbar-user-btn').onclick = () => {
+      if (window.confirm('確定要切換用戶嗎？')) {
+        State.clearUser();
+        window.location.href = 'index.html';
+      }
+    };
+  })();
+
+  function _updateTopbarUser(user) {
+    const img = document.getElementById('topbar-avatar');
+    if (!img) return;
+    const cached = State.getAvatarCache(user.userId);
+    img.src = cached || user.avatarUrl || CONFIG.USERS[user.userId]?.defaultAvatar || '';
+    img.onerror = () => { img.src = CONFIG.USERS[user.userId]?.defaultAvatar || ''; };
+  }
+</script>
+</body>
+</html>

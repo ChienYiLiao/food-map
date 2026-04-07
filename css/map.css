@@ -1,0 +1,365 @@
+/* ── Google Maps 樣式調整 ────────────────────────────────────────────────────── */
+.gm-style .gm-style-iw-c { display: none !important; }
+.gm-style .gm-style-iw-tc { display: none !important; }
+.gm-bundled-control { display: none !important; }
+
+/* ── 自訂 Marker ────────────────────────────────────────────────────────────── */
+.map-marker {
+  width: 40px;
+  height: 40px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 2px solid rgba(255,255,255,0.15);
+}
+.map-marker.visited {
+  background: var(--color-visited);
+  box-shadow: 0 3px 12px rgba(155,143,176,0.55);
+}
+.map-marker.unvisited {
+  background: var(--color-unvisited);
+  box-shadow: 0 3px 12px rgba(122,154,181,0.4);
+  opacity: 0.75;
+}
+.map-marker.selected {
+  background: var(--color-primary-light);
+  transform: rotate(-45deg) scale(1.3);
+  box-shadow: 0 6px 20px rgba(184,174,207,0.7);
+  z-index: 999;
+  opacity: 1;
+}
+.map-marker .marker-content {
+  transform: rotate(45deg);
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.map-marker.unvisited .marker-content {
+  width: 10px;
+  height: 10px;
+  background: rgba(255,255,255,0.7);
+  border-radius: 50%;
+}
+
+/* ── 地圖浮層 UI ─────────────────────────────────────────────────────────────── */
+#map-overlay-ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  max-width: var(--max-width);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ── 半徑控制卡片 ───────────────────────────────────────────────────────────── */
+#map-radius-card {
+  position: absolute;
+  top: calc(var(--topbar-height) + env(safe-area-inset-top, 0) + 12px);
+  left: var(--space-md);
+  right: var(--space-md);
+  background: var(--color-map-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  pointer-events: auto;
+  box-shadow: var(--shadow-md);
+}
+#map-radius-card .radius-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+#map-radius-card .radius-options {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  justify-content: flex-end;
+}
+.radius-btn {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  transition: var(--transition-fast);
+  pointer-events: auto;
+}
+.radius-btn.active {
+  background: rgba(155,143,176,0.2);
+  color: var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+/* ── 右下角 FAB 按鈕組 ───────────────────────────────────────────────────────── */
+#map-fab-group {
+  position: absolute;
+  bottom: calc(var(--navbar-height) + env(safe-area-inset-bottom) + 16px);
+  right: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  pointer-events: auto;
+}
+.map-fab {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-map-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-fast);
+}
+.map-fab:active { transform: scale(0.9); background: var(--color-bg-elevated); }
+.map-fab.primary {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(155,143,176,0.5);
+}
+
+/* ── 地圖統計浮條（底部） ───────────────────────────────────────────────────── */
+#map-stats-bar {
+  position: absolute;
+  bottom: calc(var(--navbar-height) + env(safe-area-inset-bottom) + 16px);
+  left: var(--space-md);
+  right: 72px; /* 右側留給 FAB */
+  background: var(--color-map-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+  pointer-events: auto;
+  box-shadow: var(--shadow-md);
+}
+.map-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+.map-stat-value {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text);
+}
+.map-stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+.map-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--color-border);
+}
+
+/* ── 餐廳詳情 Bottom Sheet ──────────────────────────────────────────────────── */
+#restaurant-sheet-overlay {
+  z-index: 500;
+}
+#restaurant-sheet-overlay .modal-sheet {
+  max-height: 85vh;
+}
+.restaurant-sheet-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+.restaurant-sheet-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+}
+.restaurant-sheet-name {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+.restaurant-sheet-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+.restaurant-sheet-address {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+/* ── 評價表單 ───────────────────────────────────────────────────────────────── */
+.review-form-section {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-md);
+  margin-top: var(--space-md);
+}
+.review-form-title {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-sm);
+}
+.review-overall {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-sm);
+}
+.review-overall-label {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* ── 用餐紀錄卡片 ───────────────────────────────────────────────────────────── */
+.visit-card {
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--space-sm);
+}
+.visit-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-xs);
+}
+.visit-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+.visit-date {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+.visit-note {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--color-border);
+}
+.visit-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+.visit-score-item {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background: var(--color-bg-card);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+}
+
+/* ── 隨機抽選頁面 ───────────────────────────────────────────────────────────── */
+.random-pick-result {
+  text-align: center;
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, rgba(155,143,176,0.15) 0%, rgba(192,152,152,0.1) 100%);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(155,143,176,0.2);
+  margin: var(--space-md) 0;
+}
+.random-pick-emoji { font-size: 56px; margin-bottom: var(--space-sm); }
+.random-pick-name {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: var(--space-xs);
+}
+.random-pick-category {
+  font-size: var(--font-size-sm);
+  color: var(--color-primary-light);
+  margin-bottom: var(--space-sm);
+}
+.random-pick-rating {
+  font-size: var(--font-size-md);
+  color: var(--color-star);
+  font-weight: 600;
+}
+
+/* ── 餐型選擇器 ─────────────────────────────────────────────────────────────── */
+.meal-type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+.meal-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-sm) 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  border: 1.5px solid var(--color-border);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  transition: var(--transition-fast);
+}
+.meal-type-btn .meal-emoji { font-size: 22px; }
+.meal-type-btn.selected {
+  background: rgba(155,143,176,0.15);
+  border-color: var(--color-primary);
+  color: var(--color-primary-light);
+}
+.meal-type-btn:active { transform: scale(0.93); }
+
+/* ── 旋轉動畫（抽選時） ─────────────────────────────────────────────────────── */
+@keyframes pickSpin {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.05); opacity: 0.7; }
+  100% { transform: scale(1); }
+}
+.picking-animation {
+  animation: pickSpin 0.3s ease infinite;
+}

@@ -1,0 +1,201 @@
+/* ── App 容器 ────────────────────────────────────────────────────────────────── */
+#app {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--color-bg);
+  position: relative;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 頂部 TopBar（地圖上浮層） ───────────────────────────────────────────────── */
+#topbar {
+  position: fixed;
+  top: env(safe-area-inset-top, 0);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--max-width);
+  z-index: 100;
+  height: var(--topbar-height);
+  background: var(--color-map-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(52,51,64,0.5);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-md);
+  gap: var(--space-sm);
+}
+.topbar-user-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+}
+.topbar-user-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.topbar-title {
+  flex: 1;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  text-align: center;
+  color: var(--color-text);
+}
+.topbar-right {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.topbar-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  flex-shrink: 0;
+  transition: var(--transition-fast);
+}
+.topbar-btn:active { background: var(--color-border); }
+
+/* ── 地圖容器（全畫面背景） ────────────────────────────────────────────────── */
+#map-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--color-bg);
+}
+
+/* ── 主內容區（非地圖頁面） ────────────────────────────────────────────────── */
+#main-content {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: calc(var(--topbar-height) + env(safe-area-inset-top, 0));
+  padding-bottom: calc(var(--navbar-height) + env(safe-area-inset-bottom) + 8px);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── 地圖頁面隱藏 main-content，讓地圖可見 ────────────────────────────────── */
+#main-content.map-active {
+  background: transparent;
+  pointer-events: none;
+}
+#main-content.map-active > .page.active {
+  pointer-events: none;
+}
+
+/* ── 底部導覽列 ──────────────────────────────────────────────────────────────── */
+#navbar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--max-width);
+  height: calc(var(--navbar-height) + env(safe-area-inset-bottom));
+  background: var(--color-map-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(52,51,64,0.5);
+  display: flex;
+  align-items: flex-start;
+  padding-top: 8px;
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 200;
+}
+.navbar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0;
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+.navbar-item.active { color: var(--color-primary-light); }
+.navbar-item svg { width: 22px; height: 22px; }
+.navbar-item span { font-size: 10px; font-weight: 600; }
+
+/* ── 頁面容器 ────────────────────────────────────────────────────────────────── */
+.page { padding: var(--space-md); display: none; }
+.page.active { display: block; }
+.page.map-page { padding: 0; pointer-events: none; background: transparent; }
+
+/* ── 登入/使用者選擇頁 ───────────────────────────────────────────────────────── */
+#login-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: linear-gradient(160deg, #1a0f3d 0%, #0d0d1a 50%, #1a0d2e 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+}
+.login-logo { font-size: 60px; margin-bottom: var(--space-md); }
+.login-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: var(--space-xs);
+}
+.login-subtitle {
+  font-size: var(--font-size-md);
+  color: rgba(255,255,255,0.5);
+  margin-bottom: var(--space-2xl);
+}
+.login-users {
+  display: flex;
+  gap: var(--space-xl);
+  justify-content: center;
+}
+.login-user-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  background: rgba(155,143,176,0.1);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-xl);
+  border: 1.5px solid rgba(155,143,176,0.25);
+  transition: var(--transition-base);
+  cursor: pointer;
+  min-width: 120px;
+}
+.login-user-card:active { transform: scale(0.93); background: rgba(155,143,176,0.2); }
+.login-user-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(155,143,176,0.4);
+  background: var(--color-bg-elevated);
+}
+.login-user-name {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: #fff;
+}
+.login-hint {
+  margin-top: var(--space-lg);
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.3);
+}
