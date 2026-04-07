@@ -81,6 +81,10 @@ const MapPage = (() => {
       _isInitialized = true;
       State.setState({ mapCenter: _currentCenter });
 
+      // 強制觸發 resize，確保 Google Maps 正確讀取容器尺寸
+      google.maps.event.trigger(_map, 'resize');
+      _map.setCenter({ lat: center.lat, lng: center.lng });
+
       // 初次載入附近餐廳
       await refreshNearby(true);
     } catch (err) {

@@ -19,10 +19,11 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
 <body>
-<div id="app">
 
-  <!-- ── 地圖容器（全畫面背景） ──────────────────────────────────────────── -->
-  <div id="map-container"></div>
+<!-- ── 地圖容器（全畫面背景，在 #app 外避免 overflow-x:hidden 干擾） ── -->
+<div id="map-container"></div>
+
+<div id="app">
 
   <!-- ── 頂部 TopBar ──────────────────────────────────────────────────────── -->
   <header id="topbar">
