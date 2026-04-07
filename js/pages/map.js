@@ -31,9 +31,18 @@ const MapPage = (() => {
     if (!_isInitialized) {
       await _initMap();
     } else {
-      // 地圖已初始化，確保容器可見
+      // 地圖已初始化：還原 display 並觸發 resize（因 hide 時設了 display:none）
       const container = document.getElementById('map-container');
-      if (container) container.style.visibility = 'visible';
+      if (container) {
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+        container.style.width = window.innerWidth + 'px';
+        container.style.height = window.innerHeight + 'px';
+      }
+      if (_map) setTimeout(() => {
+        google.maps.event.trigger(_map, 'resize');
+        if (_currentCenter) _map.setCenter({ lat: _currentCenter.lat, lng: _currentCenter.lng });
+      }, 50);
     }
 
     // FAB 按鈕事件
@@ -45,7 +54,7 @@ const MapPage = (() => {
 
   function hide() {
     const container = document.getElementById('map-container');
-    if (container) container.style.visibility = 'hidden';
+    if (container) { container.style.visibility = 'hidden'; container.style.display = 'none'; }
     Loader.forceHide(); // 確保 Loader 不會卡住導覽列
   }
 
@@ -81,6 +90,7 @@ const MapPage = (() => {
       _useAdvancedMarker = false;
 
       const container = document.getElementById('map-container');
+      container.style.display = 'block';
       container.style.visibility = 'visible';
       container.style.width = window.innerWidth + 'px';
       container.style.height = window.innerHeight + 'px';

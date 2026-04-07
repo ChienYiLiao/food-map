@@ -25,18 +25,24 @@ const Router = (() => {
     }
   }
 
-  // 直接切換頁面，不依賴 hashchange 事件（iOS Safari standalone 相容）
+  // 直接切換頁面（iOS Safari 相容）
+  // 問題：iOS Safari 在 pushState 後，window.location.hash 不一定即時更新，
+  //       導致 _getHash() 讀到舊值 → hash === _current → 早期 return → 什麼都不做
+  // 修法：hash 直接傳入 _handleRouteChange，完全不讀 window.location.hash
   function go(hash) {
-    window.history.pushState(null, '', '#' + hash);
-    _handleRouteChange();
+    if (_current === hash) return; // 同頁面不重複執行
+    try { window.location.hash = hash; } catch(e) {} // 更新 URL（browser 模式額外 hashchange fallback）
+    _handleRouteChange(hash); // 直接傳 hash，不依賴 window.location.hash 時機
   }
 
   function _getHash() {
     return window.location.hash.replace('#', '') || 'map';
   }
 
-  function _handleRouteChange() {
-    const hash = _getHash();
+  // explicitHash：從 go() 直接傳入時使用，避免 iOS Safari pushState 時序問題
+  // 無 explicitHash：從 hashchange 事件觸發，此時 window.location.hash 已確保更新
+  function _handleRouteChange(explicitHash) {
+    const hash = (typeof explicitHash === 'string') ? explicitHash : _getHash();
     if (hash === _current) return;
 
     // 1. 離開目前頁面
@@ -58,9 +64,9 @@ const Router = (() => {
       if (mapOverlay)  mapOverlay.style.display = 'none';
       // 非地圖頁回頂
       if (mainContent) mainContent.scrollTop = 0;
-      // 強制確保地圖容器隱藏（防止 _initMap async race condition 讓地圖蓋住其他頁面）
+      // 強制確保地圖容器完全隱藏（防止 _initMap async race condition 讓地圖蓋住其他頁面）
       const mapContainer = document.getElementById('map-container');
-      if (mapContainer) mapContainer.style.visibility = 'hidden';
+      if (mapContainer) { mapContainer.style.visibility = 'hidden'; mapContainer.style.display = 'none'; }
     }
 
     // 4. 顯示目標頁面
