@@ -71,12 +71,14 @@ const API = (() => {
     const url = 'https://places.googleapis.com/v1/places:searchNearby';
     const body = {
       includedTypes: [
-        'restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway',
-        'meal_delivery', 'food', 'chinese_restaurant', 'japanese_restaurant',
+        'restaurant', 'cafe', 'bar', 'bakery',
+        'chinese_restaurant', 'japanese_restaurant',
         'korean_restaurant', 'hamburger_restaurant', 'pizza_restaurant',
         'ramen_restaurant', 'sushi_restaurant', 'breakfast_restaurant',
         'brunch_restaurant', 'fast_food_restaurant', 'dessert_shop',
-        'ice_cream_shop', 'bubble_tea_store', 'coffee_shop'
+        'ice_cream_shop', 'bubble_tea_shop', 'coffee_shop', 'sandwich_shop',
+        'seafood_restaurant', 'steak_house', 'thai_restaurant',
+        'vietnamese_restaurant', 'mexican_restaurant'
       ],
       maxResultCount: 20,
       locationRestriction: {
