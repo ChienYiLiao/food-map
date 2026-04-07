@@ -60,9 +60,23 @@ const MapPage = (() => {
     Loader.show('載入地圖中...');
     try {
       await _loadGoogleMapsScript(apiKey);
+
+      // ── Race condition 保護：如果使用者已切換到其他頁面，停止初始化
+      if (State.getState().currentPage !== 'map') {
+        Loader.hide();
+        return;
+      }
+
       const center = await _getUserLocation();
       _userLocation  = center;
       _currentCenter = center;
+      State.setState({ userLocation: center }); // 供 random-pick 使用
+
+      // 再次確認仍在地圖頁
+      if (State.getState().currentPage !== 'map') {
+        Loader.hide();
+        return;
+      }
 
       _useAdvancedMarker = false;
 
@@ -103,8 +117,10 @@ const MapPage = (() => {
       await _createLocationMarker();
       _updateRangeCircle();
 
-      // 初次載入附近餐廳
-      await refreshNearby(true);
+      // 初次載入附近餐廳（最後一次確認仍在地圖頁）
+      if (State.getState().currentPage === 'map') {
+        await refreshNearby(true);
+      }
     } catch (err) {
       Toast.error('地圖載入失敗：' + err.message);
       console.error(err);
@@ -160,7 +176,7 @@ const MapPage = (() => {
       _userLocation  = center;
       _currentCenter = center;
       if (_map) _map.panTo({ lat: center.lat, lng: center.lng });
-      State.setState({ mapCenter: center });
+      State.setState({ mapCenter: center, userLocation: center });
       await _createLocationMarker();
       _updateRangeCircle();
       await refreshNearby(true);

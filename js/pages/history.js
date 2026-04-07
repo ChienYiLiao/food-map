@@ -53,6 +53,9 @@ const HistoryPage = (() => {
     const otherUserId = user?.userId === 'user_pigpig' ? 'user_gungun' : 'user_pigpig';
     const otherEmoji = CONFIG.USERS[otherUserId]?.emoji || '👤';
 
+    const userDisplayName  = CONFIG.USERS[user?.userId]?.displayName  || '我';
+    const otherDisplayName = CONFIG.USERS[otherUserId]?.displayName || 'TA';
+
     page.innerHTML = `
       <!-- 篩選列 -->
       <div class="toggle-group" style="margin-bottom:16px;">
@@ -60,11 +63,11 @@ const HistoryPage = (() => {
                 onclick="HistoryPage._setFilter('all')">全部</button>
         <button class="toggle-btn ${_filterUserId===user?.userId?'active':''}"
                 onclick="HistoryPage._setFilter('${user?.userId}')">
-          ${userEmoji} 我的
+          ${userEmoji} ${userDisplayName}
         </button>
         <button class="toggle-btn ${_filterUserId===otherUserId?'active':''}"
                 onclick="HistoryPage._setFilter('${otherUserId}')">
-          ${otherEmoji} TA的
+          ${otherEmoji} ${otherDisplayName}
         </button>
       </div>
       <!-- 列表 -->

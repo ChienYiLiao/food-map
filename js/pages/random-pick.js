@@ -7,9 +7,20 @@ const RandomPickPage = (() => {
   let _selectedMealType = CONFIG.getMealTypeByHour();
   let _selectedCategories = [];   // 空 = 全部
   let _onlyOpen = true;
+  let _limitByDistance = true;    // 預設限制在地圖目前範圍內
   let _minRating = 0;
   let _isPicking = false;
   let _lastResult = null;
+
+  // Haversine 距離計算（回傳公尺）
+  function _haversineDistance(a, b) {
+    const R = 6371000;
+    const dLat = (b.lat - a.lat) * Math.PI / 180;
+    const dLng = (b.lng - a.lng) * Math.PI / 180;
+    const x = Math.sin(dLat/2)**2 +
+      Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  }
 
   function show() {
     _render();
@@ -49,6 +60,15 @@ const RandomPickPage = (() => {
           ${_lastResult.avg_rating ? `${Utils.formatRating(_lastResult.avg_rating)} 分` : ''}
         </div>
         ${_lastResult.address ? `<div style="font-size:12px;color:var(--color-text-muted);margin-top:8px;">📍 ${Utils.truncate(_lastResult.address, 30)}</div>` : ''}
+        ${(() => {
+          const userLoc = State.getState().userLocation;
+          if (userLoc && _lastResult.lat && _lastResult.lng) {
+            const d = _haversineDistance(userLoc, { lat: Number(_lastResult.lat), lng: Number(_lastResult.lng) });
+            const dStr = d >= 1000 ? (d/1000).toFixed(1) + ' km' : Math.round(d) + ' m';
+            return `<div style="font-size:12px;color:var(--color-primary-light);margin-top:4px;">🚶 距離約 ${dStr}</div>`;
+          }
+          return '';
+        })()}
         ${_lastResult.isOpen !== null ? `
           <div style="margin-top:8px;">
             ${_lastResult.isOpen
@@ -97,6 +117,16 @@ const RandomPickPage = (() => {
         </div>
         <div class="settings-item" style="margin-top:4px;">
           <div>
+            <div class="settings-item-label">📍 限地圖目前範圍</div>
+            <div class="settings-item-desc">${_getDistanceDesc()}</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="limit-distance-toggle" ${_limitByDistance ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+        <div class="settings-item" style="margin-top:4px;">
+          <div>
             <div class="settings-item-label">最低評分</div>
           </div>
           <select class="form-input" id="min-rating-select"
@@ -118,8 +148,19 @@ const RandomPickPage = (() => {
     const toggleEl = document.getElementById('only-open-toggle');
     if (toggleEl) toggleEl.onchange = e => { _onlyOpen = e.target.checked; };
 
+    const distToggleEl = document.getElementById('limit-distance-toggle');
+    if (distToggleEl) distToggleEl.onchange = e => { _limitByDistance = e.target.checked; };
+
     const ratingEl = document.getElementById('min-rating-select');
     if (ratingEl) ratingEl.onchange = e => { _minRating = Number(e.target.value); };
+  }
+
+  function _getDistanceDesc() {
+    const userLoc = State.getState().userLocation;
+    const radius  = State.getState().mapRadius || CONFIG.DEFAULT_RADIUS;
+    if (!userLoc) return '需先開啟地圖定位';
+    if (radius === 0) return '自由模式（無限制）';
+    return `限 ${radius >= 1000 ? (radius/1000) + 'km' : radius + 'm'} 範圍內`;
   }
 
   function _setMealType(key) {
@@ -173,6 +214,18 @@ const RandomPickPage = (() => {
       // 4. 最低評分篩選
       if (_minRating > 0) {
         pool = pool.filter(r => Number(r.avg_rating) >= _minRating);
+      }
+
+      // 4.5. 距離篩選（限地圖範圍）
+      if (_limitByDistance) {
+        const userLoc = State.getState().userLocation;
+        const radius  = State.getState().mapRadius || CONFIG.DEFAULT_RADIUS;
+        if (userLoc && radius > 0) {
+          pool = pool.filter(r => {
+            if (!r.lat || !r.lng) return false;
+            return _haversineDistance(userLoc, { lat: Number(r.lat), lng: Number(r.lng) }) <= radius;
+          });
+        }
       }
 
       if (pool.length === 0) {
