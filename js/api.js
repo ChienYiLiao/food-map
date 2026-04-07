@@ -76,7 +76,7 @@ const API = (() => {
         'korean_restaurant', 'hamburger_restaurant', 'pizza_restaurant',
         'ramen_restaurant', 'sushi_restaurant', 'breakfast_restaurant',
         'brunch_restaurant', 'fast_food_restaurant', 'dessert_shop',
-        'ice_cream_shop', 'bubble_tea_shop', 'coffee_shop', 'sandwich_shop',
+        'ice_cream_shop', 'coffee_shop', 'sandwich_shop',
         'seafood_restaurant', 'steak_house', 'thai_restaurant',
         'vietnamese_restaurant', 'mexican_restaurant'
       ],
