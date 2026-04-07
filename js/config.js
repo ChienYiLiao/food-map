@@ -120,10 +120,11 @@ const CONFIG = {
   // ── 預設地圖半徑（公尺） ──────────────────────────────────────────────────
   DEFAULT_RADIUS: 1000,
   RADIUS_OPTIONS: [
-    { label: '500m', value: 500 },
-    { label: '1km',  value: 1000 },
+    { label: '500m',  value: 500 },
+    { label: '1km',   value: 1000 },
     { label: '1.5km', value: 1500 },
-    { label: '2km',  value: 2000 }
+    { label: '2km',   value: 2000 },
+    { label: '自由',  value: 0 }    // 0 = 無限制，拖曳地圖自由搜尋
   ],
 
   // ── 餐型 ──────────────────────────────────────────────────────────────────

@@ -5,13 +5,17 @@
 
 const MapPage = (() => {
   let _map = null;
-  let _markers = {};            // { [place_id]: Marker | AdvancedMarkerElement }
-  let _currentCenter = null;    // { lat, lng }
+  let _markers = {};
+  let _userLocation = null;     // 使用者 GPS 位置（不隨拖曳改變）
+  let _currentCenter = null;    // 目前搜尋中心（自由模式時跟隨拖曳）
   let _currentRadius = CONFIG.DEFAULT_RADIUS;
   let _isInitialized = false;
   let _selectedPlaceId = null;
-  let _gasRestaurants = [];     // GAS 端的餐廳資料（已吃過的資訊）
-  let _useAdvancedMarker = false; // 有 Map ID 才用 AdvancedMarkerElement
+  let _gasRestaurants = [];
+  let _useAdvancedMarker = false;
+  let _locationMarker = null;   // 藍色「我的位置」標記
+  let _rangeCircle = null;      // 搜尋範圍圓圈
+  let _allRestaurants = [];     // 當前顯示的所有餐廳（供統計條點擊用）
 
   // ── 頁面進入 ──────────────────────────────────────────────────────────────
   async function show() {
@@ -39,9 +43,9 @@ const MapPage = (() => {
   }
 
   function hide() {
-    // 離開地圖頁時隱藏地圖容器（避免地圖透出其他頁面）
     const container = document.getElementById('map-container');
     if (container) container.style.visibility = 'hidden';
+    Loader.forceHide(); // 確保 Loader 不會卡住導覽列
   }
 
   // ── 初始化地圖 ──────────────────────────────────────────────────────────────
@@ -56,6 +60,7 @@ const MapPage = (() => {
     try {
       await _loadGoogleMapsScript(apiKey);
       const center = await _getUserLocation();
+      _userLocation  = center;
       _currentCenter = center;
 
       _useAdvancedMarker = false;
@@ -78,19 +83,24 @@ const MapPage = (() => {
       };
       _map = new google.maps.Map(container, mapOptions);
 
-      // 地圖拖曳結束後更新中心點並刷新
+      // 拖曳：只有「自由模式」（radius=0）才重新搜尋
       _map.addListener('dragend', () => {
-        const c = _map.getCenter();
-        _currentCenter = { lat: c.lat(), lng: c.lng() };
-        refreshNearby(false);
+        if (_currentRadius === 0) {
+          const c = _map.getCenter();
+          _currentCenter = { lat: c.lat(), lng: c.lng() };
+          refreshNearby(false);
+        }
       });
 
       _isInitialized = true;
       State.setState({ mapCenter: _currentCenter });
 
-      // 強制觸發 resize，確保 Google Maps 正確讀取容器尺寸
       google.maps.event.trigger(_map, 'resize');
       _map.setCenter({ lat: center.lat, lng: center.lng });
+
+      // 建立「我的位置」藍點 & 搜尋範圍圓圈
+      _createLocationMarker();
+      _updateRangeCircle();
 
       // 初次載入附近餐廳
       await refreshNearby(true);
@@ -146,12 +156,54 @@ const MapPage = (() => {
     Loader.show('定位中...');
     try {
       const center = await _getUserLocation();
+      _userLocation  = center;
       _currentCenter = center;
       if (_map) _map.panTo({ lat: center.lat, lng: center.lng });
       State.setState({ mapCenter: center });
+      _createLocationMarker();
+      _updateRangeCircle();
       await refreshNearby(true);
     } finally {
       Loader.hide();
+    }
+  }
+
+  // ── 我的位置標記（藍點） ──────────────────────────────────────────────────────
+  function _createLocationMarker() {
+    if (!_map || !_userLocation) return;
+    if (_locationMarker) _locationMarker.setMap(null);
+    _locationMarker = new google.maps.Marker({
+      map: _map,
+      position: { lat: _userLocation.lat, lng: _userLocation.lng },
+      title: '我的位置',
+      zIndex: 999,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 10,
+        fillColor: '#4A90D9',
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 3
+      }
+    });
+  }
+
+  // ── 搜尋範圍圓圈 ─────────────────────────────────────────────────────────────
+  function _updateRangeCircle() {
+    if (!_map || !_userLocation) return;
+    if (_rangeCircle) _rangeCircle.setMap(null);
+    _rangeCircle = null;
+    if (_currentRadius > 0) {
+      _rangeCircle = new google.maps.Circle({
+        map: _map,
+        center: { lat: _userLocation.lat, lng: _userLocation.lng },
+        radius: _currentRadius,
+        strokeColor: '#9b8fb0',
+        strokeOpacity: 0.7,
+        strokeWeight: 2,
+        fillColor: '#9b8fb0',
+        fillOpacity: 0.06
+      });
     }
   }
 
@@ -170,10 +222,13 @@ const MapPage = (() => {
       }
 
       // 2. 從 Places API 取得附近餐廳
+      // 有限範圍：以我的位置為中心；自由模式：以地圖中心搜尋
+      const searchCenter = (_currentRadius > 0 && _userLocation) ? _userLocation : _currentCenter;
+      const searchRadius = _currentRadius > 0 ? _currentRadius : 2000;
       const placeResults = await API.searchNearby(
-        _currentCenter.lat,
-        _currentCenter.lng,
-        _currentRadius
+        searchCenter.lat,
+        searchCenter.lng,
+        searchRadius
       );
 
       // 3. 合併資料
@@ -364,32 +419,40 @@ const MapPage = (() => {
     _currentRadius = meters;
     State.setState({ mapRadius: meters });
     _renderRadiusOptions();
+    // 有限範圍：回到我的位置並更新圓圈
+    if (meters > 0 && _userLocation) {
+      _currentCenter = _userLocation;
+      if (_map) _map.panTo({ lat: _userLocation.lat, lng: _userLocation.lng });
+    }
+    _updateRangeCircle();
     refreshNearby(false);
   }
 
   // ── 統計條 ───────────────────────────────────────────────────────────────────
   function _updateStatsBar(restaurants) {
+    _allRestaurants = restaurants; // 存起來供點擊用
+
     const visited = restaurants.filter(r => r.visit_count > 0);
     const open    = restaurants.filter(r => r.isOpen === true);
-    const total   = restaurants;
 
     const statVisited = document.getElementById('stat-visited');
     const statTotal   = document.getElementById('stat-total');
     const statOpen    = document.getElementById('stat-open');
     if (statVisited) statVisited.textContent = visited.length;
-    if (statTotal)   statTotal.textContent   = total.length;
+    if (statTotal)   statTotal.textContent   = restaurants.length;
     if (statOpen)    statOpen.textContent    = open.length;
 
-    // 統計條點擊 → 顯示條列
+    // 綁定點擊（只綁一次，用 delegation）
     const bar = document.getElementById('map-stats-bar');
-    if (!bar._listenersAdded) {
+    if (bar && !bar._listenersAdded) {
       bar._listenersAdded = true;
-      document.querySelector('.map-stat-item:nth-child(1)')?.addEventListener('click', () =>
-        _showRestaurantList('已吃過', visited));
-      document.querySelector('.map-stat-item:nth-child(3)')?.addEventListener('click', () =>
-        _showRestaurantList('附近餐廳', total));
-      document.querySelector('.map-stat-item:nth-child(5)')?.addEventListener('click', () =>
-        _showRestaurantList('營業中', open));
+      const items = bar.querySelectorAll('.map-stat-item');
+      if (items[0]) items[0].addEventListener('click', () =>
+        _showRestaurantList('已吃過', _allRestaurants.filter(r => r.visit_count > 0)));
+      if (items[1]) items[1].addEventListener('click', () =>
+        _showRestaurantList('附近餐廳', _allRestaurants));
+      if (items[2]) items[2].addEventListener('click', () =>
+        _showRestaurantList('營業中', _allRestaurants.filter(r => r.isOpen === true)));
     }
   }
 

@@ -101,6 +101,14 @@ const RestaurantDetail = (() => {
 
       ${r.address ? `<div class="restaurant-sheet-address">📍 ${r.address}</div>` : ''}
 
+      ${(r.lat && r.lng) ? `
+      <button onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}&travelmode=driving','_blank')"
+              style="width:100%;padding:10px;margin-bottom:8px;background:rgba(74,144,217,0.15);
+                     border:1px solid rgba(74,144,217,0.4);border-radius:var(--radius-md);
+                     color:#4A90D9;font-weight:600;font-size:14px;">
+        🗺️ Google Maps 導航
+      </button>` : ''}
+
       <!-- 分頁 -->
       <div class="tab-group" style="margin-top:4px;">
         <button class="tab-btn ${_activeTab==='info'?'active':''}"
