@@ -29,11 +29,11 @@ function handleGetReviews(params) {
 
 /**
  * 新增評價
- * body: { restaurant_id, user_id, visited_date, overall_rating, scores_json, note, meal_type }
+ * body: { restaurant_id, user_id, visited_date, overall_rating, scores_json, note, items_json, meal_type }
  */
 function handleAddReview(body) {
   const { restaurant_id, user_id, visited_date, overall_rating,
-          scores_json, note, meal_type } = body;
+          scores_json, note, items_json, meal_type } = body;
 
   if (!restaurant_id) throw new Error('Missing restaurant_id');
   if (!user_id)       throw new Error('Missing user_id');
@@ -49,6 +49,7 @@ function handleAddReview(body) {
     overall_rating: Number(overall_rating) || 0,
     scores_json:    scores_json    || '{}',
     note:           note           || '',
+    items_json:     items_json     || '',
     meal_type:      meal_type      || '',
     created_at:     now,
     updated_at:     now
@@ -68,7 +69,7 @@ function handleUpdateReview(body) {
   if (!review_id) throw new Error('Missing review_id');
 
   const updatePatch = {};
-  const allowed = ['visited_date','overall_rating','scores_json','note','meal_type'];
+  const allowed = ['visited_date','overall_rating','scores_json','note','items_json','meal_type'];
   allowed.forEach(key => {
     if (patch[key] !== undefined) updatePatch[key] = patch[key];
   });

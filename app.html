@@ -49,6 +49,9 @@
 
     <!-- 設定 -->
     <div id="page-settings" class="page"></div>
+
+    <!-- 分析 -->
+    <div id="page-analysis" class="page"></div>
   </main>
 
   <!-- ── 地圖頁面浮層 UI ────────────────────────────────────────────────── -->
@@ -118,6 +121,7 @@
 <script src="js/pages/random-pick.js"></script>
 <script src="js/pages/restaurant-detail.js"></script>
 <script src="js/pages/map.js"></script>
+<script src="js/pages/analysis.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 
 <script>
@@ -141,6 +145,7 @@
     Router.register('history',  { onEnter: () => HistoryPage.show(),  onLeave: () => HistoryPage.hide() });
     Router.register('random',   { onEnter: () => RandomPickPage.show(), onLeave: () => RandomPickPage.hide() });
     Router.register('settings', { onEnter: () => SettingsPage.show(), onLeave: () => SettingsPage.hide() });
+    Router.register('analysis', { onEnter: () => AnalysisPage.show(), onLeave: () => AnalysisPage.hide() });
 
     // 5. 初始化路由
     Router.init();

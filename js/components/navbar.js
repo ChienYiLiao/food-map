@@ -33,6 +33,14 @@ const Navbar = {
         </svg>
         <span>抽選</span>
       </button>
+      <button class="navbar-item" data-route="analysis" onclick="Router.go('analysis')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="12" width="4" height="9" rx="1"/>
+          <rect x="10" y="7" width="4" height="14" rx="1"/>
+          <rect x="17" y="3" width="4" height="18" rx="1"/>
+        </svg>
+        <span>分析</span>
+      </button>
       <button class="navbar-item" data-route="settings" onclick="Router.go('settings')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"/>

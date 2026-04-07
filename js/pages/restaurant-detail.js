@@ -7,24 +7,28 @@ const RestaurantDetail = (() => {
   let _current = null;          // 目前顯示的餐廳
   let _reviews = [];            // 該餐廳的評價列表
   let _activeTab = 'info';      // 'info' | 'reviews' | 'add-review'
+  let _prevMenuItems = [];      // 上次評價的品項（作為快速新增參考）
   let _reviewForm = {           // 新增評價表單資料
     overall: 0,
     scores: {},
     note: '',
     visitedDate: Utils.today(),
-    mealType: CONFIG.getMealTypeByHour()
+    mealType: CONFIG.getMealTypeByHour(),
+    items: []
   };
 
   // ── 公開：顯示餐廳詳情 ─────────────────────────────────────────────────────
   function show(restaurant) {
     _current = restaurant;
     _activeTab = 'info';
+    _prevMenuItems = [];
     _reviewForm = {
       overall: 0,
       scores: {},
       note: '',
       visitedDate: Utils.today(),
-      mealType: CONFIG.getMealTypeByHour()
+      mealType: CONFIG.getMealTypeByHour(),
+      items: []
     };
     _loadAndRender();
     Modal.show('restaurant-sheet-overlay');
@@ -59,6 +63,19 @@ const RestaurantDetail = (() => {
         _reviews = [];
       }
     }
+
+    // 從最近一筆評價中提取品項，作為快速新增參考
+    _prevMenuItems = [];
+    if (_reviews.length > 0) {
+      const latestReview = _reviews[0]; // 已按 visited_date 倒序排列
+      if (latestReview.items_json) {
+        const parsed = Utils.safeJsonParse(latestReview.items_json);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          _prevMenuItems = parsed;
+        }
+      }
+    }
+
     _render();
   }
 
@@ -236,6 +253,21 @@ const RestaurantDetail = (() => {
         .join('');
       const mealTypeEmoji = CONFIG.MEAL_TYPES.find(m => m.key === review.meal_type)?.emoji || '';
 
+      // 品項顯示
+      let itemsHtml = '';
+      if (review.items_json) {
+        const items = Utils.safeJsonParse(review.items_json);
+        if (Array.isArray(items) && items.length > 0) {
+          const chips = items.map(item =>
+            `<span class="visit-item-chip">
+              ${item.name}${item.price ? ` $${item.price}` : ''}
+              ${item.price_changed ? `<span class="price-change-badge">↑漲價</span>` : ''}
+            </span>`
+          ).join('');
+          itemsHtml = `<div class="visit-items">${chips}</div>`;
+        }
+      }
+
       return `
         <div class="visit-card">
           <div class="visit-card-header">
@@ -254,6 +286,7 @@ const RestaurantDetail = (() => {
           </div>
           ${scoresHtml ? `<div class="visit-scores">${scoresHtml}</div>` : ''}
           ${review.note ? `<div class="visit-note">${review.note}</div>` : ''}
+          ${itemsHtml}
           <div style="display:flex;justify-content:flex-end;margin-top:8px;gap:8px;">
             <button onclick="RestaurantDetail._deleteReview('${review.review_id}')"
                     style="font-size:12px;color:var(--color-expense);">刪除</button>
@@ -300,6 +333,38 @@ const RestaurantDetail = (() => {
       </div>
     `).join('');
 
+    // 快速新增 chips（來自上次評價）
+    const quickChipsHtml = _prevMenuItems.length > 0 ? `
+      <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:6px;">上次點的：</div>
+      <div class="menu-quick-chips">
+        ${_prevMenuItems.map((item, i) => `
+          <button class="menu-quick-chip"
+                  onclick="RestaurantDetail._addItemFromPrev('${item.name.replace(/'/g,"\\'")}', ${item.price || 0})">
+            <span>${item.name}</span>
+            ${item.price ? `<span class="chip-price">$${item.price}</span>` : ''}
+          </button>
+        `).join('')}
+      </div>
+    ` : '';
+
+    // 當前品項列表
+    const currentItemsHtml = _reviewForm.items.map((item, i) => {
+      const prevItem = _prevMenuItems.find(p => p.name === item.name);
+      const priceChanged = prevItem && prevItem.price && item.price && Number(item.price) > Number(prevItem.price);
+      return `
+        <div class="menu-item-row" id="menu-item-row-${i}">
+          <input class="menu-item-name-input" type="text"
+                 value="${item.name}" placeholder="品項名稱"
+                 oninput="RestaurantDetail._updateItemName(${i}, this.value)">
+          <input class="menu-item-price-input" type="number"
+                 value="${item.price || ''}" placeholder="價格"
+                 oninput="RestaurantDetail._updateItemPrice(${i}, this.value)">
+          ${priceChanged ? `<span class="price-change-badge">↑漲價</span>` : ''}
+          <button class="menu-item-remove-btn" onclick="RestaurantDetail._removeItem(${i})">✕</button>
+        </div>
+      `;
+    }).join('');
+
     container.innerHTML = `
       <div style="padding:8px 0;">
         <!-- 用餐者 -->
@@ -344,9 +409,19 @@ const RestaurantDetail = (() => {
                     style="resize:none;">${_reviewForm.note}</textarea>
         </div>
 
+        <!-- 本次點了什麼 -->
+        <div class="menu-items-section">
+          <div class="review-form-title">🍽️ 本次點了什麼</div>
+          ${quickChipsHtml}
+          <div id="menu-items-list">${currentItemsHtml}</div>
+          <button class="menu-add-btn" onclick="RestaurantDetail._addNewItem()">
+            ➕ 新增品項
+          </button>
+        </div>
+
         <!-- 送出 -->
         <button class="btn btn-primary btn-block" id="submit-review-btn"
-                style="margin-bottom:8px;">
+                style="margin-top:16px;margin-bottom:8px;">
           ✅ 送出評價
         </button>
         <button class="btn btn-ghost btn-block"
@@ -392,6 +467,92 @@ const RestaurantDetail = (() => {
     document.getElementById('submit-review-btn').onclick = () => _submitReview();
   }
 
+  // ── 品項管理函式 ─────────────────────────────────────────────────────────────
+
+  function _addItemFromPrev(name, price) {
+    // 避免重複新增同名品項
+    if (_reviewForm.items.find(i => i.name === name)) {
+      Toast.info(`「${name}」已在清單中`);
+      return;
+    }
+    const prevItem = _prevMenuItems.find(p => p.name === name);
+    const priceChanged = prevItem && prevItem.price && price && Number(price) > Number(prevItem.price);
+    _reviewForm.items.push({
+      name,
+      price: price || 0,
+      prev_price: prevItem?.price || null,
+      price_changed: priceChanged
+    });
+    _renderMenuItemsList();
+  }
+
+  function _addNewItem() {
+    _reviewForm.items.push({ name: '', price: 0, prev_price: null, price_changed: false });
+    _renderMenuItemsList();
+    // 聚焦最後一個 name input
+    const rows = document.querySelectorAll('.menu-item-name-input');
+    if (rows.length > 0) rows[rows.length - 1].focus();
+  }
+
+  function _removeItem(idx) {
+    _reviewForm.items.splice(idx, 1);
+    _renderMenuItemsList();
+  }
+
+  function _updateItemName(idx, val) {
+    if (_reviewForm.items[idx] !== undefined) {
+      _reviewForm.items[idx].name = val;
+    }
+  }
+
+  function _updateItemPrice(idx, val) {
+    if (_reviewForm.items[idx] !== undefined) {
+      const price = Number(val) || 0;
+      _reviewForm.items[idx].price = price;
+      // 檢查漲價
+      const prevItem = _prevMenuItems.find(p => p.name === _reviewForm.items[idx].name);
+      _reviewForm.items[idx].price_changed = !!(prevItem && prevItem.price && price > Number(prevItem.price));
+      _reviewForm.items[idx].prev_price = prevItem?.price || null;
+      // 更新漲價 badge（不重繪整個列表，只更新 badge）
+      const row = document.getElementById(`menu-item-row-${idx}`);
+      if (row) {
+        let badge = row.querySelector('.price-change-badge');
+        if (_reviewForm.items[idx].price_changed) {
+          if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'price-change-badge';
+            badge.textContent = '↑漲價';
+            const removeBtn = row.querySelector('.menu-item-remove-btn');
+            row.insertBefore(badge, removeBtn);
+          }
+        } else {
+          if (badge) badge.remove();
+        }
+      }
+    }
+  }
+
+  function _renderMenuItemsList() {
+    const listEl = document.getElementById('menu-items-list');
+    if (!listEl) return;
+    listEl.innerHTML = _reviewForm.items.map((item, i) => {
+      const prevItem = _prevMenuItems.find(p => p.name === item.name);
+      const priceChanged = prevItem && prevItem.price && item.price && Number(item.price) > Number(prevItem.price);
+      return `
+        <div class="menu-item-row" id="menu-item-row-${i}">
+          <input class="menu-item-name-input" type="text"
+                 value="${item.name}" placeholder="品項名稱"
+                 oninput="RestaurantDetail._updateItemName(${i}, this.value)">
+          <input class="menu-item-price-input" type="number"
+                 value="${item.price || ''}" placeholder="價格"
+                 oninput="RestaurantDetail._updateItemPrice(${i}, this.value)">
+          ${priceChanged ? `<span class="price-change-badge">↑漲價</span>` : ''}
+          <button class="menu-item-remove-btn" onclick="RestaurantDetail._removeItem(${i})">✕</button>
+        </div>
+      `;
+    }).join('');
+  }
+
   function _setMealType(key) {
     _reviewForm.mealType = key;
     _renderAddReviewTab(document.getElementById('detail-tab-content'));
@@ -420,6 +581,9 @@ const RestaurantDetail = (() => {
       }
     }
 
+    // 整理品項資料（濾掉沒有名稱的）
+    const validItems = _reviewForm.items.filter(item => item.name && item.name.trim() !== '');
+
     Loader.show('送出評價中...');
     try {
       await API.addReview({
@@ -429,7 +593,8 @@ const RestaurantDetail = (() => {
         overall_rating: _reviewForm.overall,
         scores_json:    _reviewForm.scores,
         note:           _reviewForm.note,
-        meal_type:      _reviewForm.mealType
+        meal_type:      _reviewForm.mealType,
+        items_json:     validItems.length > 0 ? JSON.stringify(validItems) : ''
       });
 
       // 清除快取
@@ -472,8 +637,13 @@ const RestaurantDetail = (() => {
     }
   }
 
-  // 公開 _setTab 和 _setMealType（inline onclick 需要）
-  return { show, hide, _setTab, _setMealType, _deleteReview };
+  // 公開 _setTab、_setMealType、_deleteReview 及品項管理函式（inline onclick 需要）
+  return {
+    show, hide,
+    _setTab, _setMealType, _deleteReview,
+    _addItemFromPrev, _addNewItem, _removeItem,
+    _updateItemName, _updateItemPrice
+  };
 })();
 
 window.RestaurantDetail = RestaurantDetail;

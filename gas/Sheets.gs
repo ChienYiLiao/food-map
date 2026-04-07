@@ -23,7 +23,7 @@ const SHEET_HEADERS = {
   ],
   REVIEWS: [
     'review_id','restaurant_id','user_id','visited_date',
-    'overall_rating','scores_json','note','meal_type','created_at','updated_at'
+    'overall_rating','scores_json','note','items_json','meal_type','created_at','updated_at'
   ],
   CLASSIFY_LOG: [
     'log_id','restaurant_id','place_id','restaurant_name',

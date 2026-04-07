@@ -23,9 +23,9 @@ const MapPage = (() => {
     // 初始化半徑按鈕
     _renderRadiusOptions();
 
-    // 右上角 refresh 按鈕
+    // 右上角搜尋按鈕
     const rightEl = document.getElementById('topbar-right');
-    if (rightEl) rightEl.innerHTML = '';
+    if (rightEl) rightEl.innerHTML = `<button class="topbar-btn" onclick="MapPage.showSearch()" title="搜尋餐廳">🔍</button>`;
 
     // 初始化地圖（第一次進入）
     if (!_isInitialized) {
@@ -671,8 +671,98 @@ const MapPage = (() => {
     setTimeout(() => _onMarkerClick(restaurant), 400);
   }
 
+  // ── 搜尋功能 ─────────────────────────────────────────────────────────────────
+  function showSearch() {
+    let panel = document.getElementById('map-search-panel');
+    if (panel) {
+      panel.remove();
+    }
+
+    panel = document.createElement('div');
+    panel.id = 'map-search-panel';
+    panel.innerHTML = `
+      <div class="search-input-row">
+        <input type="search" id="map-search-input" placeholder="搜尋餐廳名稱、類型..." autocomplete="off">
+        <button class="search-close-btn topbar-btn" onclick="MapPage.hideSearch()">✕</button>
+      </div>
+      <div id="map-search-results"></div>
+    `;
+    document.getElementById('app').appendChild(panel);
+
+    const input = document.getElementById('map-search-input');
+    if (input) {
+      input.focus();
+      input.addEventListener('input', e => _doSearch(e.target.value.trim()));
+    }
+
+    // 初始顯示全部（限 30 筆）
+    _doSearch('');
+  }
+
+  function hideSearch() {
+    const panel = document.getElementById('map-search-panel');
+    if (panel) panel.remove();
+  }
+
+  function _doSearch(query) {
+    const resultsEl = document.getElementById('map-search-results');
+    if (!resultsEl) return;
+
+    // 合併搜尋來源：_allRestaurants 優先，再從 State 快取補充
+    const stateCache = State.getState().restaurantsCache || [];
+    const combined = _allRestaurants.length > 0 ? _allRestaurants : stateCache;
+
+    let filtered;
+    if (!query) {
+      filtered = combined.slice(0, 50);
+    } else {
+      const q = query.toLowerCase();
+      filtered = combined.filter(r =>
+        (r.name && r.name.toLowerCase().includes(q)) ||
+        (r.category && r.category.toLowerCase().includes(q)) ||
+        (r.address && r.address.toLowerCase().includes(q))
+      ).slice(0, 50);
+    }
+
+    if (filtered.length === 0) {
+      resultsEl.innerHTML = `<div class="search-empty">沒有符合「${query}」的餐廳</div>`;
+      return;
+    }
+
+    resultsEl.innerHTML = filtered.map((r, i) => {
+      const emoji = r.category ? CONFIG.getCategoryEmoji(r.category) : '🍽️';
+      const visitStr = r.visit_count > 0 ? `已吃過 ${r.visit_count} 次` : '未吃過';
+      const ratingStr = r.avg_rating > 0 ? ` · ⭐${Utils.formatRating(r.avg_rating)}` : '';
+      return `
+        <div class="search-result-item" onclick="MapPage._searchResultClick(${i})">
+          <div class="search-result-emoji">${emoji}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="search-result-name">${r.name}</div>
+            <div class="search-result-meta">${r.category || '未分類'} · ${visitStr}${ratingStr}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 暫存搜尋結果供點擊使用
+    MapPage._searchResults = filtered;
+  }
+
+  function _searchResultClick(idx) {
+    const restaurant = MapPage._searchResults?.[idx];
+    if (!restaurant) return;
+    hideSearch();
+    if (_map && restaurant.lat && restaurant.lng) {
+      _map.panTo({ lat: restaurant.lat, lng: restaurant.lng });
+      _map.setZoom(17);
+      setTimeout(() => _onMarkerClick(restaurant), 400);
+    } else {
+      RestaurantDetail.show(restaurant);
+    }
+  }
+
   // 公開方法
-  return { show, hide, setRadius, refreshNearby, panToRestaurant };
+  return { show, hide, setRadius, refreshNearby, panToRestaurant, showSearch, hideSearch, _searchResultClick };
 })();
 
 // 讓 Router 可以存取

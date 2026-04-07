@@ -11,6 +11,7 @@ const Modal = (() => {
     overlay.onclick = e => {
       if (e.target === overlay) hide(id);
     };
+    _addDragToDismiss(overlay, id);
   }
 
   function hide(id) {
@@ -18,6 +19,60 @@ const Modal = (() => {
     if (!overlay) return;
     overlay.classList.remove('active');
     document.body.style.overflow = '';
+  }
+
+  function _addDragToDismiss(overlay, id) {
+    const sheet = overlay.querySelector('.modal-sheet');
+    if (!sheet) return;
+
+    // 移除舊的 listener（避免重複）
+    if (sheet._dragHandlersAttached) return;
+    sheet._dragHandlersAttached = true;
+
+    let startY = 0;
+    let currentY = 0;
+    let dragging = false;
+
+    function onTouchStart(e) {
+      const touch = e.touches[0];
+      // 只有在 sheet 頂部 80px 內且 scrollTop === 0 時才啟動拖曳
+      const rect = sheet.getBoundingClientRect();
+      const touchOffsetInSheet = touch.clientY - rect.top;
+      if (sheet.scrollTop !== 0 || touchOffsetInSheet > 80) {
+        dragging = false;
+        return;
+      }
+      dragging = true;
+      startY = touch.clientY;
+      currentY = touch.clientY;
+      sheet.style.transition = 'none';
+    }
+
+    function onTouchMove(e) {
+      if (!dragging) return;
+      currentY = e.touches[0].clientY;
+      const diff = currentY - startY;
+      if (diff > 0) {
+        // 只允許向下拖曳
+        e.preventDefault();
+        sheet.style.transform = `translateY(${diff}px)`;
+      }
+    }
+
+    function onTouchEnd() {
+      if (!dragging) return;
+      dragging = false;
+      const diff = currentY - startY;
+      sheet.style.transition = '';
+      sheet.style.transform = '';
+      if (diff > 100) {
+        hide(id);
+      }
+    }
+
+    sheet.addEventListener('touchstart', onTouchStart, { passive: true });
+    sheet.addEventListener('touchmove',  onTouchMove,  { passive: false });
+    sheet.addEventListener('touchend',   onTouchEnd,   { passive: true });
   }
 
   function confirm(message, { title = '確認', confirmText = '確認', cancelText = '取消', danger = false } = {}) {
