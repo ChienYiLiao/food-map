@@ -92,6 +92,7 @@
   padding-top: calc(var(--topbar-height) + env(safe-area-inset-top, 0));
   padding-bottom: calc(var(--navbar-height) + env(safe-area-inset-bottom) + 8px);
   -webkit-overflow-scrolling: touch;
+  background: var(--color-bg); /* 遮住地圖背景 */
 }
 
 /* ── 地圖頁面隱藏 main-content，讓地圖可見 ────────────────────────────────── */

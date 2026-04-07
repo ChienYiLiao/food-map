@@ -39,7 +39,9 @@ const MapPage = (() => {
   }
 
   function hide() {
-    // 地圖頁離開時，保留地圖實例
+    // 離開地圖頁時隱藏地圖容器（避免地圖透出其他頁面）
+    const container = document.getElementById('map-container');
+    if (container) container.style.visibility = 'hidden';
   }
 
   // ── 初始化地圖 ──────────────────────────────────────────────────────────────
@@ -59,11 +61,9 @@ const MapPage = (() => {
       _useAdvancedMarker = false;
 
       const container = document.getElementById('map-container');
-      // 確保容器有明確尺寸
+      container.style.visibility = 'visible';
       container.style.width = window.innerWidth + 'px';
       container.style.height = window.innerHeight + 'px';
-      // 診斷用（確認尺寸正確）
-      Toast.show(`容器: ${container.offsetWidth}×${container.offsetHeight}`, 'info');
 
       const mapOptions = {
         center: { lat: center.lat, lng: center.lng },
@@ -369,15 +369,71 @@ const MapPage = (() => {
 
   // ── 統計條 ───────────────────────────────────────────────────────────────────
   function _updateStatsBar(restaurants) {
-    const visited = restaurants.filter(r => r.visit_count > 0).length;
-    const open    = restaurants.filter(r => r.isOpen === true).length;
-    const total   = restaurants.length;
+    const visited = restaurants.filter(r => r.visit_count > 0);
+    const open    = restaurants.filter(r => r.isOpen === true);
+    const total   = restaurants;
+
     const statVisited = document.getElementById('stat-visited');
     const statTotal   = document.getElementById('stat-total');
     const statOpen    = document.getElementById('stat-open');
-    if (statVisited) statVisited.textContent = visited;
-    if (statTotal)   statTotal.textContent   = total;
-    if (statOpen)    statOpen.textContent    = open;
+    if (statVisited) statVisited.textContent = visited.length;
+    if (statTotal)   statTotal.textContent   = total.length;
+    if (statOpen)    statOpen.textContent    = open.length;
+
+    // 統計條點擊 → 顯示條列
+    const bar = document.getElementById('map-stats-bar');
+    if (!bar._listenersAdded) {
+      bar._listenersAdded = true;
+      document.querySelector('.map-stat-item:nth-child(1)')?.addEventListener('click', () =>
+        _showRestaurantList('已吃過', visited));
+      document.querySelector('.map-stat-item:nth-child(3)')?.addEventListener('click', () =>
+        _showRestaurantList('附近餐廳', total));
+      document.querySelector('.map-stat-item:nth-child(5)')?.addEventListener('click', () =>
+        _showRestaurantList('營業中', open));
+    }
+  }
+
+  // 顯示餐廳條列 Modal
+  function _showRestaurantList(title, restaurants) {
+    let overlay = document.getElementById('restaurant-list-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'restaurant-list-overlay';
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML = `
+        <div class="modal-sheet" style="max-height:75vh;overflow-y:auto;">
+          <div class="modal-handle"></div>
+          <div class="modal-title" id="rlist-title"></div>
+          <div id="rlist-body"></div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay) Modal.hide('restaurant-list-overlay');
+      });
+    }
+
+    document.getElementById('rlist-title').textContent = title + `（${restaurants.length}）`;
+    const body = document.getElementById('rlist-body');
+
+    if (restaurants.length === 0) {
+      body.innerHTML = `<div style="padding:24px;text-align:center;color:var(--color-text-muted);">目前沒有資料</div>`;
+    } else {
+      body.innerHTML = restaurants.map((r, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:12px 16px;border-bottom:1px solid var(--color-border);">
+          <div>
+            <div style="font-weight:600;font-size:14px;">${r.name}</div>
+            <div style="font-size:12px;color:var(--color-text-muted);">${r.category || '未分類'} ${r.isOpen === true ? '・營業中' : r.isOpen === false ? '・已打烊' : ''}</div>
+          </div>
+          <button class="btn btn-sm btn-primary" data-idx="${i}" onclick="MapPage.panToRestaurant(${i})">前往</button>
+        </div>
+      `).join('');
+      // 暫存當前清單供 panToRestaurant 使用
+      MapPage._currentList = restaurants;
+    }
+
+    Modal.show('restaurant-list-overlay');
   }
 
   // ── 無 API Key 提示 ──────────────────────────────────────────────────────────
@@ -397,8 +453,20 @@ const MapPage = (() => {
     `;
   }
 
+  // 前往指定餐廳（從清單呼叫）
+  function panToRestaurant(idx) {
+    const restaurant = MapPage._currentList?.[idx];
+    if (!restaurant || !_map) return;
+    Modal.hide('restaurant-list-overlay');
+    Router.navigate('map');
+    _map.panTo({ lat: restaurant.lat, lng: restaurant.lng });
+    _map.setZoom(17);
+    // 模擬點擊 Marker
+    setTimeout(() => _onMarkerClick(restaurant), 400);
+  }
+
   // 公開方法
-  return { show, hide, setRadius, refreshNearby };
+  return { show, hide, setRadius, refreshNearby, panToRestaurant };
 })();
 
 // 讓 Router 可以存取
