@@ -19,7 +19,7 @@
   transform: translateX(-50%);
   width: 100%;
   max-width: var(--max-width);
-  z-index: 100;
+  z-index: 2000; /* 高於 loader-overlay(1500)，確保 Loader 存在時仍可操作 */
   height: var(--topbar-height);
   background: var(--color-map-card);
   backdrop-filter: blur(12px);
@@ -121,7 +121,7 @@
   align-items: flex-start;
   padding-top: 8px;
   padding-bottom: env(safe-area-inset-bottom);
-  z-index: 200;
+  z-index: 2000; /* 高於 loader-overlay(1500)，地圖載入時仍可切換頁面 */
 }
 .navbar-item {
   flex: 1;

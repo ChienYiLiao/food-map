@@ -58,6 +58,9 @@ const Router = (() => {
       if (mapOverlay)  mapOverlay.style.display = 'none';
       // 非地圖頁回頂
       if (mainContent) mainContent.scrollTop = 0;
+      // 強制確保地圖容器隱藏（防止 _initMap async race condition 讓地圖蓋住其他頁面）
+      const mapContainer = document.getElementById('map-container');
+      if (mapContainer) mapContainer.style.visibility = 'hidden';
     }
 
     // 4. 顯示目標頁面

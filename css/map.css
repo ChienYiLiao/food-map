@@ -50,12 +50,14 @@
 /* ── 地圖浮層 UI ─────────────────────────────────────────────────────────────── */
 #map-overlay-ui {
   position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 50;
-  max-width: var(--max-width);
+  top: 0;
+  bottom: 0;
   left: 50%;
   transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--max-width);
+  pointer-events: none;
+  z-index: 50;
 }
 
 /* ── 半徑控制卡片 ───────────────────────────────────────────────────────────── */
@@ -179,6 +181,7 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   font-weight: 600;
+  white-space: nowrap;
 }
 .map-stat-divider {
   width: 1px;
