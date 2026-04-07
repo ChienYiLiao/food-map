@@ -5,12 +5,13 @@
 
 const MapPage = (() => {
   let _map = null;
-  let _markers = {};            // { [place_id]: AdvancedMarkerElement }
+  let _markers = {};            // { [place_id]: Marker | AdvancedMarkerElement }
   let _currentCenter = null;    // { lat, lng }
   let _currentRadius = CONFIG.DEFAULT_RADIUS;
   let _isInitialized = false;
   let _selectedPlaceId = null;
   let _gasRestaurants = [];     // GAS 端的餐廳資料（已吃過的資訊）
+  let _useAdvancedMarker = false; // 有 Map ID 才用 AdvancedMarkerElement
 
   // ── 頁面進入 ──────────────────────────────────────────────────────────────
   async function show() {
@@ -55,12 +56,12 @@ const MapPage = (() => {
       const center = await _getUserLocation();
       _currentCenter = center;
 
-      const mapId = localStorage.getItem('GOOGLE_MAP_ID') || 'DEMO_MAP_ID';
+      const mapId = localStorage.getItem('GOOGLE_MAP_ID') || '';
+      _useAdvancedMarker = !!mapId;
       const { Map } = await google.maps.importLibrary('maps');
-      _map = new Map(document.getElementById('map-container'), {
+      const mapOptions = {
         center: { lat: center.lat, lng: center.lng },
         zoom: 16,
-        mapId: mapId,
         disableDefaultUI: true,
         gestureHandling: 'greedy',
         clickableIcons: false,
@@ -68,7 +69,9 @@ const MapPage = (() => {
         streetViewControl: false,
         fullscreenControl: false,
         zoomControl: false
-      });
+      };
+      if (mapId) mapOptions.mapId = mapId;
+      _map = new Map(document.getElementById('map-container'), mapOptions);
 
       // 地圖拖曳結束後更新中心點並刷新
       _map.addListener('dragend', () => {
@@ -235,13 +238,12 @@ const MapPage = (() => {
 
   // ── Marker 管理 ────────────────────────────────────────────────────────────
   async function _renderMarkers(restaurants) {
-    const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
-
     // 移除不在新結果中的 markers
     const newPlaceIds = new Set(restaurants.map(r => r.place_id));
     Object.keys(_markers).forEach(pid => {
       if (!newPlaceIds.has(pid)) {
-        _markers[pid].map = null;
+        const m = _markers[pid];
+        if (m.map !== undefined) m.map = null; else m.setMap(null);
         delete _markers[pid];
       }
     });
@@ -250,26 +252,47 @@ const MapPage = (() => {
     for (const restaurant of restaurants) {
       if (!restaurant.lat || !restaurant.lng) continue;
       if (_markers[restaurant.place_id]) {
-        // 已存在，更新內容
         _updateMarkerContent(_markers[restaurant.place_id], restaurant);
       } else {
-        // 新建
-        const marker = _createMarker(restaurant, AdvancedMarkerElement);
+        const marker = await _createMarker(restaurant);
         _markers[restaurant.place_id] = marker;
       }
     }
   }
 
-  function _createMarker(restaurant, AdvancedMarkerElement) {
-    const content = _buildMarkerContent(restaurant);
-    const marker = new AdvancedMarkerElement({
-      map: _map,
-      position: { lat: restaurant.lat, lng: restaurant.lng },
-      content: content,
-      title: restaurant.name
-    });
-    marker.addEventListener('click', () => _onMarkerClick(restaurant));
-    return marker;
+  async function _createMarker(restaurant) {
+    if (_useAdvancedMarker) {
+      const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
+      const content = _buildMarkerContent(restaurant);
+      const marker = new AdvancedMarkerElement({
+        map: _map,
+        position: { lat: restaurant.lat, lng: restaurant.lng },
+        content: content,
+        title: restaurant.name
+      });
+      marker.addEventListener('click', () => _onMarkerClick(restaurant));
+      return marker;
+    } else {
+      // 傳統 Marker（不需要 Map ID）
+      const isVisited = restaurant.visit_count > 0;
+      const marker = new google.maps.Marker({
+        map: _map,
+        position: { lat: restaurant.lat, lng: restaurant.lng },
+        title: restaurant.name,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: isVisited ? 10 : 7,
+          fillColor: isVisited ? '#9b8fb0' : '#7a9ab5',
+          fillOpacity: isVisited ? 0.9 : 0.7,
+          strokeColor: '#ffffff',
+          strokeWeight: 2
+        }
+      });
+      marker.addListener('click', () => _onMarkerClick(restaurant));
+      // 模擬 AdvancedMarker 的 map 屬性介面
+      marker._isClassicMarker = true;
+      return marker;
+    }
   }
 
   function _buildMarkerContent(restaurant) {
@@ -293,9 +316,18 @@ const MapPage = (() => {
   }
 
   function _updateMarkerContent(marker, restaurant) {
-    if (marker.content) {
-      const newContent = _buildMarkerContent(restaurant);
-      marker.content = newContent;
+    if (marker._isClassicMarker) {
+      const isVisited = restaurant.visit_count > 0;
+      marker.setIcon({
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: isVisited ? 10 : 7,
+        fillColor: isVisited ? '#9b8fb0' : '#7a9ab5',
+        fillOpacity: isVisited ? 0.9 : 0.7,
+        strokeColor: '#ffffff',
+        strokeWeight: 2
+      });
+    } else if (marker.content) {
+      marker.content = _buildMarkerContent(restaurant);
     }
   }
 
