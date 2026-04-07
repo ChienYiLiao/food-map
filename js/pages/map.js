@@ -56,8 +56,17 @@ const MapPage = (() => {
       const center = await _getUserLocation();
       _currentCenter = center;
 
-      const mapId = localStorage.getItem('GOOGLE_MAP_ID') || '';
-      _useAdvancedMarker = false; // 傳統 Marker，不需要 Map ID
+      _useAdvancedMarker = false;
+
+      // 確保容器有明確尺寸（Google Maps 初始化時需要）
+      const container = document.getElementById('map-container');
+      container.style.position = 'fixed';
+      container.style.top = '0';
+      container.style.left = '0';
+      container.style.width = window.innerWidth + 'px';
+      container.style.height = window.innerHeight + 'px';
+      container.style.zIndex = '0';
+
       const mapOptions = {
         center: { lat: center.lat, lng: center.lng },
         zoom: 16,
@@ -69,7 +78,7 @@ const MapPage = (() => {
         fullscreenControl: false,
         zoomControl: false
       };
-      _map = new google.maps.Map(document.getElementById('map-container'), mapOptions);
+      _map = new google.maps.Map(container, mapOptions);
 
       // 地圖拖曳結束後更新中心點並刷新
       _map.addListener('dragend', () => {
